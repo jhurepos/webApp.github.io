@@ -1,131 +1,92 @@
 'use strict';
 
-var gender = 'male';
-var hypertension = 'noMedication';
+var scenarioVector = [1, 0, 0, 0, 0]; // Default to excellent self-rated health scenario
 
-function setActiveGender(type) {
-  gender = type
-  var buttons = document.querySelectorAll('.gender a');
-  for (var i = 0; i < buttons.length; i++) {
-    buttons[i].classList.remove('active');
+function selectScenario(scenario) {
+  switch (scenario) {
+    case 'excellent':
+      scenarioVector = [1, 0, 0, 0, 0];
+      break;
+    case 'verygood':
+      scenarioVector = [0, 1, 0, 0, 0];
+      break;
+    case 'good':
+      scenarioVector = [0, 0, 1, 0, 0];
+      break;
+    case 'fair':
+      scenarioVector = [0, 0, 0, 1, 0];
+      break;
+    case 'poor':
+      scenarioVector = [0, 0, 0, 0, 1];
+      break;
+    default:
+      scenarioVector = [0, 0, 1, 0, 0]; // Set default to 'good'
   }
-  document.querySelector('.button-' + type).classList.add('active');
+  calculateMortalityRisk(scenario); // Pass selected scenario to calculateMortalityRisk
 }
 
-document.getElementById("expected-eGFRcr").style.display = 'none'
-document.getElementById("predicted-creatinine").style.display = 'none'
-document.getElementById("discussion-description").style.display = 'none'
+function calculateMortalityRisk(scenario) {
+  const beta = [0, .29266961, .63127178, 1.0919233, 2.010895]; // Beta coefficients for excellent, very good, good, fair, poor
+  const s0 = [.9999999, .96281503, .91558171, .87179276, .82403985]; // Survival probabilities at timepoints 0, 5, 10, 15, 20
+  const timePoints = [0, 5, 10, 15, 20];
+  const logHR = beta.reduce((acc, curr, index) => acc + (curr * scenarioVector[index]), 0);
+  const f0 = s0.map(s => (1 - s) * 100);
+  const f1 = f0.map((f, index) => f * Math.exp(logHR));
 
-function footerDescription(type) {
-  gender = type
-  var buttons = document.querySelectorAll('.footer a');
-  for (var i = 0; i < buttons.length; i++) {
-    buttons[i].classList.remove('active');
-  }
-  document.querySelector('.button-' + type).classList.add('active');
-  console.log(type)
+  // Color schemes for different scenarios
+  const colorSchemes = {
+    'excellent': 'rgba(0, 191, 255, 1)',    // Bright blue
+    'verygood': 'rgba(255, 0, 255, 1)',      // Magenta
+    'good': 'rgba(106, 168, 79, 1)',         // Cabbage green
+    'fair': 'rgba(255, 255, 0, 1)',          // Lemon yellow
+    'poor': 'rgba(128, 0, 128, 1)'           // Purple
+  };
 
-  if (type === 'model') {
-    document.getElementById("discussion-description").style.display = 'none'
-    document.getElementById("model-insights-description").style.display = 'block'
-  } else {
-    document.getElementById("discussion-description").style.display = 'block'
-    document.getElementById("model-insights-description").style.display = 'none'
-  }
+  const riskResults = timePoints.map((time, index) => `Risk at ${time} years: ${f1[index].toFixed(2)}%`);
+
+  // Draw graph
+  const ctx = document.getElementById('mortality-risk-graph').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: timePoints.map(String),
+      datasets: [{
+        label: 'Mortality Risk',
+        data: f1,
+        steppedLine: 'before',
+        borderColor: colorSchemes[scenario],
+        backgroundColor: colorSchemes[scenario].replace('1)', '0.2)'),
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Timepoints (years)'
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Mortality Risk (%)'
+          },
+          suggestedMin: 0,
+          suggestedMax: 80,
+          stepSize: 20,
+          fontSize: 14
+        }
+      }
+    }
+  });
+
+  document.getElementById("mortality-risk-results").innerText = riskResults.join('\n');
 }
 
-// function validateInput(input) {
-//   // document.getElementById("gfg").
-//   var bmi = document.getElementById("bmi");
-//   var errorMessageElement = document.getElementById("error-message");
-//   if (input.value > 40) {
-//     errorMessageElement.textContent = 'Value should be between 15 to 40';
-//     bmi.setCustomValidity('Value should be between 15 to 40');o
-//   } else if (input.value < 15) {
-//     errorMessageElement.textContent = 'Value should be between 15 to 40';
-//     bmi.setCustomValidity('Value should be between 15 to 40');o
-//   } else {
-//     errorMessageElement.textContent = '';
-//     bmi.setCustomValidity('');
-//   }
-//   // if (input.value > 40) {
-//   //   input.value = 40;
-//   // } else if (input.value < 15) {
-//   //   input.value = 15
-//   // } else {
-//   //   input.value = input.value;
-
-//   // if (input.value === '') {
-//   //   input.value = '';
-//   // }
-//   console.log(input.value)
-// }
-
-function setActiveHypertension(type) {
-  hypertension = type
-  var buttons = document.querySelectorAll('.hypertension a');
-  for (var i = 0; i < buttons.length; i++) {
-    buttons[i].classList.remove('active');
-  }
-  document.querySelector('.button-' + type).classList.add('active');
-}
-
-
-function onSubmit (event) {
-  // event.preventDefault();
-  var form = document.getElementById("myForm");
-  if (form.checkValidity()) {
-    document.getElementById("expected-eGFRcr").style.display = 'block'
-    document.getElementById("predicted-creatinine").style.display = 'block'
-  } else {
-    document.getElementById("expected-eGFRcr").style.display = 'none'
-    document.getElementById("predicted-creatinine").style.display = 'none'
-    form.reportValidity();
-    return;
-  }
-
-  var age = Number(document.getElementById("age").value);
-  var creatinine = Number(document.getElementById("creatinine").value);
-  var bmi = Number(document.getElementById("bmi").value);
-  var height = Number(document.getElementById("height").value);
-  // var patient = {
-  //   gender: gender,
-  //   hypertension: hypertension,
-  //   age: age,
-  //   creatinine: creatinine,
-  //   bmi: bmi,
-  //   height: height
-  // };
-
-  calculateDonorRisk(creatinine, gender, bmi, age, height, hypertension);
-}
-
-function calculateDonorRisk(predonationCreatinine, gender, BMI, age, height, hypertension) {
-  const maleCoefficient = gender == 'male' ? 1 : 0;
-  const hypertensionCoefficient = hypertension == 'noMedication' ? 0 : 1;
-  const predonationCreatinineCoefficientSeven = predonationCreatinine > 0.7 ? 1 : 0;
-  const predonationCreatinineCoefficientNine = predonationCreatinine > 0.9 ? 1 : 0;
-  const BMI30Term = BMI > 30 ? 1 : 0;
-  const age55Term = age > 55 ? 1 : 0;
-
-  const predictedCreatinine  =
-      0.0600344 + ((0.8191583 + (-0.3593172 * maleCoefficient)) * predonationCreatinine) + ((0.1311153 + (0.4733182 * maleCoefficient)) *(predonationCreatinine - 0.7) * predonationCreatinineCoefficientSeven) + (-0.1581432*(predonationCreatinine - 0.9) * predonationCreatinineCoefficientNine) + 0.3429115 * maleCoefficient + 0.0034174 * BMI + (-0.0025009 * (BMI - 30 ) * BMI30Term) + (0.0024177 * age) + (-0.0007185 * (age - 55) * age55Term) + (0.12903 * height) + (0.0074556 * hypertensionCoefficient)
-
-  console.log(predictedCreatinine)
-
-  const kCoefficient = gender == 'male' ? 0.9 : 0.7;
-  const alphaCoefficient = gender == 'male' ? -0.302 : 0.241;
-  const eGFRcrCoefficient = gender == 'male' ? 1 : 1.012;
-  const constant = 142;
-  const eGFRcrMin = Math.min(predictedCreatinine / kCoefficient, 1);
-  const eGFRcrMax = Math.max(predictedCreatinine / kCoefficient, 1);
-  const powerMin = Math.pow(eGFRcrMin, alphaCoefficient);
-  const powerMax = Math.pow(eGFRcrMax, -1.2);
-  const ageCoefficient = Math.pow(0.9938, age) * eGFRcrCoefficient;
-  const expectedeGFRcr = constant * powerMin * powerMax * ageCoefficient
-
-  console.log(expectedeGFRcr)
-
-  document.getElementById("predicted-creatinine-result").innerText = predictedCreatinine.toFixed(2)
-  document.getElementById("expected-eGFRcr-result").innerText = expectedeGFRcr.toFixed(0)
-}
+// Attach event listener to the dropdown to update the scenarioVector
+document.getElementById("scenario-dropdown").addEventListener("change", function() {
+  selectScenario(this.value);
+});
